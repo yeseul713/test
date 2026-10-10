@@ -1,0 +1,7 @@
+numpy
+opencv-python-headless
+pillow
+rapidocr-onnxruntime
+faster-whisper
+yt-dlp
+gdown

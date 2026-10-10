@@ -1,0 +1,6 @@
+output/
+inbox/
+reference/
+__pycache__/
+*.pyc
+assets/generated/

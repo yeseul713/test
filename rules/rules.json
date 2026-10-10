@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "status": "provisional",
+    "note": "레퍼런스 3개 영상을 다운로드하지 못해(네트워크 차단) 숏폼 일반 관행으로 만든 임시 값입니다. `ve.py analyze` 실행 후 `--apply` 하면 레퍼런스 실측값으로 덮어씁니다."
+  },
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30,
+    "landscape_mode": "fit_blur"
+  },
+  "cut": {
+    "pad_before": 0.05,
+    "pad_after": 0.1,
+    "silence_db": -35,
+    "min_silence": 0.3,
+    "min_speech": 0.25,
+    "max_shot": 2.6,
+    "min_shot": 0.9,
+    "zoom_levels": [
+      1.0,
+      1.14
+    ],
+    "sec_per_char": 0.17
+  },
+  "subtitle": {
+    "font": "NanumSquareRound",
+    "bold": true,
+    "size": 78,
+    "color": "&H00FFFFFF",
+    "outline_color": "&H00000000",
+    "outline": 7,
+    "shadow": 2,
+    "margin_v": 560,
+    "max_chars_per_line": 12,
+    "max_lines": 2,
+    "highlight_color": "&H0000E6FF"
+  },
+  "emphasis": {
+    "size": 128,
+    "color": "&H0000E6FF",
+    "outline": 11,
+    "pos_x": 540,
+    "pos_y": 760,
+    "hold": 0.9,
+    "pop_ms": 120,
+    "pop_scale": 118,
+    "start_scale": 60
+  },
+  "hook": {
+    "enabled": true,
+    "size": 96,
+    "pos_y": 520,
+    "duration": 1.8,
+    "zoom": 1.16,
+    "max_chars_per_line": 9
+  },
+  "outro": {
+    "enabled": true,
+    "cta_text": "팔로우하고 다음 영상도 받아가세요",
+    "duration": 2.0,
+    "size": 56,
+    "pos_y": 1500,
+    "audio_fade": 1.2
+  },
+  "sfx": {
+    "volume_db": -9,
+    "unit_whoosh": true,
+    "emphasis_pop": true,
+    "hook_hit": true,
+    "outro_ding": true,
+    "lead": 0.05
+  },
+  "bgm": {
+    "enabled": true,
+    "volume_db": -24,
+    "duck": true,
+    "fade_in": 0.5
+  },
+  "broll": {
+    "zoom_push": 1.08,
+    "sfx": "whoosh"
+  },
+  "audio": {
+    "loudnorm_i": -14,
+    "loudnorm_tp": -1.5,
+    "loudnorm_lra": 11
+  },
+  "privacy": {
+    "enabled": true,
+    "sample_fps": 2,
+    "pad_px": 14,
+    "pad_sec": 0.6,
+    "blur": 40
+  },
+  "qa": {
+    "freeze_noise_db": -50,
+    "freeze_min_sec": 1.2,
+    "static_run_sec": 3,
+    "dup_window_sec": 3,
+    "monotone_shots": 5,
+    "max_total_sec": 60,
+    "static_diff": 0.8,
+    "dup_diff": 6,
+    "qa_fps": 5
+  },
+  "typo_fixes": {
+    "됬": "됐",
+    "되요": "돼요",
+    "안되": "안 돼",
+    "몇일": "며칠",
+    "웬지": "왠지",
+    "어떻해": "어떡해",
+    "금새": "금세",
+    "설겆이": "설거지",
+    "역활": "역할",
+    "희안": "희한",
+    "오랫만": "오랜만",
+    "왠만하면": "웬만하면",
+    "깨끗히": "깨끗이",
+    "일부로": "일부러"
+  },
+  "user_feedback_rules": []
+}

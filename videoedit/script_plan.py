@@ -1,0 +1,118 @@
+"""대본 파싱 + 촬영본에서 대본 줄에 맞는 구간 찾기(컷 편집 계획)."""
+import re, difflib, pathlib
+from .common import speech_segments, list_videos, duration
+
+EMPH = re.compile(r"\*([^*]+)\*")
+BROLL = re.compile(r"\[자료\s*:\s*([^\]]+)\]")
+
+
+def parse_script(path):
+    units = []
+    for raw in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        broll = None
+        m = BROLL.search(line)
+        if m:
+            broll = m.group(1).strip(); line = BROLL.sub("", line).strip()
+        emph = EMPH.findall(line)
+        plain = EMPH.sub(lambda m: m.group(1), line)
+        units.append({"raw": line, "text": plain, "emph": emph, "broll": broll})
+    if not units:
+        raise SystemExit("대본에서 문장을 찾지 못했습니다.")
+    return units
+
+
+def _norm(s):
+    return re.sub(r"[^0-9a-zA-Z가-힣]", "", s)
+
+
+def _transcribe(files):
+    """faster-whisper 가 모델을 받을 수 있을 때만 사용. 실패하면 None."""
+    try:
+        from faster_whisper import WhisperModel
+        model = WhisperModel("small", device="cpu", compute_type="int8")
+    except Exception as e:
+        print(f"[알림] 음성인식 모델 사용 불가({type(e).__name__}) → 무음 기반 구간 배정으로 대체")
+        return None
+    segs = []
+    for f in files:
+        res, _ = model.transcribe(str(f), language="ko", vad_filter=True)
+        for s in res:
+            segs.append({"file": str(f), "start": s.start, "end": s.end, "text": s.text})
+    return segs
+
+
+def _match_asr(units, asr):
+    """줄마다 ASR 구간 묶음(최대 4개) 중 가장 비슷한 것을 고른다. 재촬영(NG 후 다시 말함)이면 마지막 것을 택한다."""
+    used = set(); out = []
+    for u in units:
+        tgt = _norm(u["text"]); best = (0, None)
+        for i in range(len(asr)):
+            for j in range(i, min(i + 4, len(asr))):
+                if asr[i]["file"] != asr[j]["file"] or any(k in used for k in range(i, j + 1)):
+                    continue
+                sc = difflib.SequenceMatcher(None, tgt, _norm("".join(a["text"] for a in asr[i:j + 1]))).ratio()
+                if sc >= best[0] - 0.02 and sc > 0.5:
+                    best = (max(sc, best[0]), (i, j))
+        if not best[1]:
+            out.append(None); continue
+        i, j = best[1]; used.update(range(i, j + 1))
+        out.append((asr[i]["file"], asr[i]["start"], asr[j]["end"]))
+    return out
+
+
+def _assign_proportional(units, segs, rules):
+    """무음 기반 말구간 목록을 글자 수 비율로 대본 줄에 배정."""
+    spc = rules["cut"]["sec_per_char"]
+    total_speech = sum(e - s for _, s, e in segs)
+    weights = [max(1, len(_norm(u["text"]))) for u in units]
+    if len(segs) == len(units):
+        return list(segs)
+    # 말구간을 이어붙인 '말 시간선' 위에서 글자 비율로 경계를 나눈다
+    cum, pos = [], 0.0
+    for f, s, e in segs:
+        cum.append((pos, pos + e - s, f, s)); pos += e - s
+    def at(x):
+        for a, b, f, s in cum:
+            if x <= b + 1e-9:
+                return f, s + (x - a)
+        a, b, f, s = cum[-1]; return f, s + (b - a)
+    out, acc, W = [], 0.0, sum(weights)
+    for w in weights:
+        x0, x1 = total_speech * acc / W, total_speech * (acc + w) / W
+        (f0, t0), (f1, t1) = at(x0 + 1e-6), at(x1)
+        out.append((f0, t0, t1) if f0 == f1 else (f0, t0, t0 + (x1 - x0)))
+        acc += w
+    return out
+
+
+def plan_cuts(units, footage_dir, rules):
+    files = list_videos(footage_dir)
+    if not files:
+        raise SystemExit(f"{footage_dir} 에 영상 파일이 없습니다.")
+    asr = _transcribe(files)
+    matched = _match_asr(units, asr) if asr else None
+    if matched and sum(m is None for m in matched) <= len(units) * 0.3:
+        mode = "음성인식+대본 매칭"
+        fb = None
+    else:
+        mode, matched = "무음구간+글자비율 배정", None
+    if matched is None:
+        segs = [(str(f), s, e) for f in files for s, e in speech_segments(str(f), rules)]
+        if not segs:
+            raise SystemExit("말하는 구간을 찾지 못했습니다(소리가 없는 촬영본?).")
+        matched = _assign_proportional(units, segs, rules)
+    else:
+        segs = None
+        # 매칭 실패 줄은 앞 줄 직후로 대체
+        for i, m in enumerate(matched):
+            if m is None:
+                prev = matched[i - 1] if i and matched[i - 1] else None
+                matched[i] = (prev[0], prev[2], prev[2] + 1.5) if prev else (str(files[0]), 0, 1.5)
+    c = rules["cut"]
+    for u, m in zip(units, matched):
+        f, s, e = m
+        u["src"] = (f, max(0.0, s - c["pad_before"]), min(duration(f), e + c["pad_after"]))
+    return mode

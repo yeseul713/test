@@ -126,7 +126,8 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
     chips = [c for c in caps if c["kind"] == "chip"]
     stack = len(chips) >= cs["stack"]["min_items"]
     # 시간 배분: 큰자막은 최소 길이 보장, 스택 태그는 마지막까지 유지
-    seq = [c for c in caps if not (stack and c["kind"] == "chip")]
+    cta = [c for c in caps if c["kind"] == "cta"]  # 마지막 몇 초에 다른 자막과 겹쳐 뜨는 참여 유도 문구
+    seq = [c for c in caps if c["kind"] != "cta" and not (stack and c["kind"] == "chip")]
     wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
     tw = sum(wts); acc = a; slot = {}
     for c, w in zip(seq, wts):
@@ -153,6 +154,10 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
             q = cs["chip"]; body = "\\N".join(l for pg in _wrap(t, 14, 3) for l in pg)
             ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
         shown.append((s0, e0, t))
+    for c in cta:
+        q = cs["plain"]; sec = cs.get("cta_sec", 1.5)
+        ev_(max(a, b - sec), b, _cap(cs["font_plain"], q["size"], cx, int(H * q["y"]), c["text"], shad=q["shadow"], extra="\\fad(250,0)\\4c&H000000&"), 3)
+        shown.append((max(a, b - sec), b, c["text"]))
     if stack:
         q = cs["stack"]; step = dur / (len(chips) + 1)
         for k, c in enumerate(chips):

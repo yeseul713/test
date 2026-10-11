@@ -142,6 +142,13 @@
       "applied": [
         "clips.json: zoom/cx/cy/orig 옵션"
       ]
+    },
+    {
+      "date": "2026-10-11",
+      "feedback": "마지막에 CTA 삽입",
+      "applied": [
+        "대본 'CTA:' 항목: 마지막 1.5초 하단 일반 자막 스타일, 페이드인"
+      ]
     }
   ],
   "caption_style": {
@@ -186,6 +193,7 @@
       "first_after": 0.0
     },
     "min_big_sec": 1.2,
-    "photo_drift": 0.04
+    "photo_drift": 0.04,
+    "cta_sec": 1.5
   }
 }

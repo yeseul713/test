@@ -14,13 +14,13 @@ def _parse_blocks(text):
         if line.startswith("## "):
             cur = {"raw": line[3:], "text": "", "emph": [], "broll": None, "captions": [], "memo": ""}
             units.append(cur); continue
-        m = re.match(r"(말|크게|자막|태그|메모)\s*:\s*(.+)", line)
+        m = re.match(r"(말|크게|자막|태그|메모|CTA)\s*:\s*(.+)", line)
         if not m or cur is None:
             continue
         k, v = m.groups()
         if k == "말": cur["text"] = v
         elif k == "메모": cur["memo"] = v
-        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip"}[k]})
+        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta"}[k]})
     for u in units:
         if not u["text"]:
             raise SystemExit(f"'{u['raw']}' 블록에 '말:' 이 없습니다.")

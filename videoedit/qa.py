@@ -20,9 +20,9 @@ def check_subtitles(units, shown, rules):
     issues, joined = [], " ".join(s[2] for s in shown)
     jn = re.sub(r"\s+", "", joined)
     for i, u in enumerate(units):
-        if re.sub(r"\s+", "", u["text"]) not in jn:
+        if re.sub(r"\s+", "", u.get("expect", u["text"])) not in jn:
             # 오타 자동수정으로 달라졌을 수 있으니 수정본으로 한 번 더 확인
-            fixed = u["text"]
+            fixed = u.get("expect", u["text"])
             for b, g in rules["typo_fixes"].items():
                 fixed = fixed.replace(b, g)
             if re.sub(r"\s+", "", fixed) not in jn:

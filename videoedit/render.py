@@ -113,6 +113,32 @@ def fix_typos(text, rules, log):
     return text
 
 
+def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
+    """말과 별개인 화면 자막: 크게=가운데 큰 팝(첫 블록의 첫 큰자막은 훅), 자막=하단 일반, 태그=노란 키워드."""
+    st, em, hk = rules["subtitle"], rules["emphasis"], rules["hook"]
+    caps = [dict(c, text=fix_typos(c["text"], rules, typo_log)) for c in u["captions"]]
+    w = [max(3, len(c["text"])) for c in caps]; tw = sum(w); dur = b - a; acc = a
+    for c, wi in zip(caps, w):
+        s0, e0 = acc, acc + dur * wi / tw; acc = e0
+        t = c["text"]
+        if c["kind"] == "big" and i == 0 and hk["enabled"]:
+            hl = "\\N".join(l for pg in _wrap(t, hk["max_chars_per_line"], 9) for l in pg)
+            ev.append(f"Dialogue: 1,{_ts(s0)},{_ts(min(e0, s0 + max(hk['duration'], 0.5)))},Hook,,0,0,0,,{pop}{hl}")
+            if rules["sfx"]["hook_hit"]: sfx.append((s0, "hit"))
+        elif c["kind"] == "big":
+            body = "\\N".join(l for pg in _wrap(t, 8, 9) for l in pg)
+            ev.append(f"Dialogue: 2,{_ts(s0)},{_ts(e0)},Emph,,0,0,0,,{{\\pos({em['pos_x']},{em['pos_y']})}}{pop}{body}")
+            if rules["sfx"]["emphasis_pop"]: sfx.append((s0, "pop"))
+        elif c["kind"] == "chip":
+            body = "\\N".join(l for pg in _wrap(t, st["max_chars_per_line"], 9) for l in pg)
+            ev.append(f"Dialogue: 2,{_ts(s0)},{_ts(e0)},Sub,,0,0,0,,{{\\c{st['highlight_color']}}}{pop}{body}")
+            if rules["sfx"]["emphasis_pop"]: sfx.append((s0, "pop"))
+        else:
+            body = "\\N".join(l for pg in _wrap(t, st["max_chars_per_line"], st["max_lines"]) for l in pg)
+            ev.append(f"Dialogue: 0,{_ts(s0)},{_ts(e0)},Sub,,0,0,0,,{body}")
+        shown.append((s0, e0, t))
+
+
 def build_ass(units, pieces, rules, work):
     W, H = rules["canvas"]["w"], rules["canvas"]["h"]
     st, em, hk, ou = rules["subtitle"], rules["emphasis"], rules["hook"], rules["outro"]
@@ -141,6 +167,11 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     pop = f"{{\\fscx{em['start_scale']}\\fscy{em['start_scale']}\\t(0,{em['pop_ms']},\\fscx{em['pop_scale']}\\fscy{em['pop_scale']})\\t({em['pop_ms']},{em['pop_ms']*2},\\fscx100\\fscy100)}}"
     for i, u in enumerate(units):
         a, b = ustart[i], uend[i]; dur = b - a
+        if u.get("captions"):
+            _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop)
+            if i > 0 and rules["sfx"]["unit_whoosh"]:
+                sfx.append((a, "whoosh"))
+            continue
         text = fix_typos(u["text"], rules, typo_log)
         emph = [fix_typos(x, rules, typo_log) for x in u["emph"]]
         hook_end = a + min(hk["duration"], dur) if (i == 0 and hk["enabled"]) else a
@@ -177,7 +208,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
         if i > 0 and rules["sfx"]["unit_whoosh"]:
             sfx.append((a, "whoosh"))
     # 아웃트로 CTA
-    if ou["enabled"] and total > ou["duration"] + 1:
+    if ou["enabled"] and total > ou["duration"] + 1 and not units[-1].get("captions"):
         s0 = total - ou["duration"]
         ev.append(f"Dialogue: 3,{_ts(s0)},{_ts(total)},Cta,,0,0,0,,{{\\pos(540,{ou['pos_y']})\\fad(250,250)}}{ou['cta_text']}")
         shown.append((s0, total, ou["cta_text"]))

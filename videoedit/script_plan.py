@@ -6,7 +6,32 @@ EMPH = re.compile(r"\*([^*]+)\*")
 BROLL = re.compile(r"\[자료\s*:\s*([^\]]+)\]")
 
 
+def _parse_blocks(text):
+    """'## 제목 시간' 블록 형식: 말/크게/자막/태그/메모. 자막은 말과 별개(화면용 문구)."""
+    units, cur = [], None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("## "):
+            cur = {"raw": line[3:], "text": "", "emph": [], "broll": None, "captions": [], "memo": ""}
+            units.append(cur); continue
+        m = re.match(r"(말|크게|자막|태그|메모)\s*:\s*(.+)", line)
+        if not m or cur is None:
+            continue
+        k, v = m.groups()
+        if k == "말": cur["text"] = v
+        elif k == "메모": cur["memo"] = v
+        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip"}[k]})
+    for u in units:
+        if not u["text"]:
+            raise SystemExit(f"'{u['raw']}' 블록에 '말:' 이 없습니다.")
+        u["expect"] = " ".join(c["text"] for c in u["captions"])
+    return units
+
+
 def parse_script(path):
+    txt = pathlib.Path(path).read_text(encoding="utf-8")
+    if re.search(r"^## ", txt, re.M):
+        return _parse_blocks(txt)
     units = []
     for raw in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
         line = raw.strip()

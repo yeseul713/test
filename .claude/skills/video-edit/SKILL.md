@@ -26,6 +26,11 @@ description: 사용자가 "구글 드라이브에 영상 올렸어, 편집해줘
 `python3 ve.py feedback "<사용자 말 그대로>"` → rules.json 수치 조정 + rulebook.md 하단에 기록.
 "자동 매핑 없음" 이 나오면 사용자 말을 해석해 `rules/rules.json` 을 직접 수정하고 rulebook.md 해당 절도 고친 뒤 커밋. 그 다음 같은 영상을 재편집할지 사용자가 원하면 재실행.
 
+## 목소리를 나중에 입히는 촬영본 편집 (2편 방식)
+촬영본(4K 세로 .mov 여러 개, 회전 메타데이터 있음)은 먼저 1080×1920 프록시(mp4)로 변환 → 장면 시트로 클립 내용을 눈으로 확인 → `scripts/<이름>.clips.json` 에 블록별 클립/시작초/모드 지정 →
+`python3 ve.py clips --clips inbox/<폴더>p --script scripts/<이름>.txt --map scripts/<이름>.clips.json --out output/<이름>.mp4`
+(하드컷, 1편 스타일 자막, 무음 트랙, 배경음·효과음 없음. 블록 시간은 `## 제목 0-2` 의 초). 촬영본 소리는 버리고 목소리는 사용자가 나중에 입힘.
+
 ## 레퍼런스 재분석
 `python3 ve.py analyze <유튜브링크…> --apply` (네트워크에서 youtube.com 허용 필요). 결과는 `reference/analysis.md`, 장면 컨택트시트 `reference/ref*/scenes.png` 를 직접 보고 rulebook.md 수치도 맞춰 갱신.
 

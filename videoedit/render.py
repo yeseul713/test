@@ -141,9 +141,14 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
             q = cs["hook"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
             ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, shad=0, extra="\\b1"), 2)
         elif c["kind"] == "big":
-            q = cs["title"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
-            ev_(s0, e0, _cap(cs["font_title"], q["size"], cx, int(H * q["y"]), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
-            ev_(s0, e0, _cap(cs["font_title"], q["size"], cx, int(H * q["y"]), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
+            q = cs["title"]; size = q["size"]
+            if q.get("wrap", True):
+                body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
+            else:  # 줄바꿈 금지: 한 줄로 두고, 화면 폭을 넘으면 글자 크기를 줄임
+                body = t; em_w = sum(0.5 if ch in " .,?!~=-…'" else 1.0 for ch in t)
+                size = min(size, int((q["max_width_px"] - 2 * q["outer"]) / (em_w * 0.95)))
+            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
+            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
         else:  # 단독 태그 = 검정 둥근 라벨
             q = cs["chip"]; body = "\\N".join(l for pg in _wrap(t, 14, 3) for l in pg)
             ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
@@ -185,7 +190,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     pop = f"{{\\fscx{em['start_scale']}\\fscy{em['start_scale']}\\t(0,{em['pop_ms']},\\fscx{em['pop_scale']}\\fscy{em['pop_scale']})\\t({em['pop_ms']},{em['pop_ms']*2},\\fscx100\\fscy100)}}"
     for i, u in enumerate(units):
         a, b = ustart[i], uend[i]; dur = b - a
-        if u.get("captions"):
+        if "captions" in u:
             _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop)
             if i > 0 and rules["sfx"]["unit_whoosh"]:
                 sfx.append((a, "whoosh"))

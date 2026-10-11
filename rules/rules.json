@@ -121,7 +121,29 @@
     "깨끗히": "깨끗이",
     "일부로": "일부러"
   },
-  "user_feedback_rules": [],
+  "user_feedback_rules": [
+    {
+      "date": "2026-10-11",
+      "feedback": "큰 자막(제목 스타일)은 줄바꿈 하지 말고 한 줄로",
+      "applied": [
+        "caption_style.title.wrap=false (한 줄이 화면 폭 960px를 넘으면 글자 크기를 자동 축소)"
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "feedback": "2편: 훅 큰자막 '하체 살을 빼야…'와 마지막 '다음 편 → 60일 핏 프로젝트' 삭제",
+      "applied": [
+        "scripts/fit_ep2.txt 에서 제거"
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "feedback": "2편: 5초 컷 3배 줌(허벅지 중심), 마지막 삽입 영상은 얼굴이 안 나오게 크롭",
+      "applied": [
+        "clips.json: zoom/cx/cy/orig 옵션"
+      ]
+    }
+  ],
   "caption_style": {
     "font_plain": "NanumGothic",
     "font_bold": "NanumBarunGothic",
@@ -142,7 +164,9 @@
       "y": 0.47,
       "max_chars": 9,
       "outer": 12,
-      "inner": 3
+      "inner": 3,
+      "wrap": false,
+      "max_width_px": 960
     },
     "chip": {
       "size": 58,

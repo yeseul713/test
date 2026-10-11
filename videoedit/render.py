@@ -113,30 +113,47 @@ def fix_typos(text, rules, log):
     return text
 
 
+def _cap(font, size, x, y, text, fill="&HFFFFFF&", bord=0, bcol="&H000000&", shad=0, extra=""):
+    return f"{{\\an5\\pos({x},{y})\\fn{font}\\fs{size}\\c{fill}\\bord{bord}\\3c{bcol}\\shad{shad}{extra}}}{text}"
+
+
 def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
-    """말과 별개인 화면 자막: 크게=가운데 큰 팝(첫 블록의 첫 큰자막은 훅), 자막=하단 일반, 태그=노란 키워드."""
-    st, em, hk = rules["subtitle"], rules["emphasis"], rules["hook"]
+    """1편 실측 스타일: 훅=흰색 대형 여러 줄 / 자막=하단 작은 흰색 / 큰자막=흰 스티커(외곽선) / 태그=검정 둥근 라벨,
+    태그 3개 이상=세로로 하나씩 쌓임. 한 블록 안의 문구는 순서대로 나타난다."""
+    cs, W, H = rules["caption_style"], rules["canvas"]["w"], rules["canvas"]["h"]
+    cx = W // 2; dur = b - a
     caps = [dict(c, text=fix_typos(c["text"], rules, typo_log)) for c in u["captions"]]
-    w = [max(3, len(c["text"])) for c in caps]; tw = sum(w); dur = b - a; acc = a
-    for c, wi in zip(caps, w):
-        s0, e0 = acc, acc + dur * wi / tw; acc = e0
-        t = c["text"]
-        if c["kind"] == "big" and i == 0 and hk["enabled"]:
-            hl = "\\N".join(l for pg in _wrap(t, hk["max_chars_per_line"], 9) for l in pg)
-            ev.append(f"Dialogue: 1,{_ts(s0)},{_ts(min(e0, s0 + max(hk['duration'], 0.5)))},Hook,,0,0,0,,{pop}{hl}")
-            if rules["sfx"]["hook_hit"]: sfx.append((s0, "hit"))
+    chips = [c for c in caps if c["kind"] == "chip"]
+    stack = len(chips) >= cs["stack"]["min_items"]
+    # 시간 배분: 큰자막은 최소 길이 보장, 스택 태그는 마지막까지 유지
+    seq = [c for c in caps if not (stack and c["kind"] == "chip")]
+    wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
+    tw = sum(wts); acc = a; slot = {}
+    for c, w in zip(seq, wts):
+        slot[id(c)] = (acc, acc + dur * w / tw); acc += dur * w / tw
+    ev_ = lambda s0, e0, t, layer=0: ev.append(f"Dialogue: {layer},{_ts(s0)},{_ts(e0)},Cap,,0,0,0,,{t}")
+    for c in seq:
+        s0, e0 = slot[id(c)]; t = c["text"]
+        if c["kind"] == "plain":
+            q = cs["plain"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 3) for l in pg)
+            ev_(s0, e0, _cap(cs["font_plain"], q["size"], cx, int(H * q["y"]), body, shad=q["shadow"], extra="\\4c&H000000&"))
+        elif c["kind"] == "big" and i == 0:
+            q = cs["hook"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
+            ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, shad=0, extra="\\b1"), 2)
         elif c["kind"] == "big":
-            body = "\\N".join(l for pg in _wrap(t, 8, 9) for l in pg)
-            ev.append(f"Dialogue: 2,{_ts(s0)},{_ts(e0)},Emph,,0,0,0,,{{\\pos({em['pos_x']},{em['pos_y']})}}{pop}{body}")
-            if rules["sfx"]["emphasis_pop"]: sfx.append((s0, "pop"))
-        elif c["kind"] == "chip":
-            body = "\\N".join(l for pg in _wrap(t, st["max_chars_per_line"], 9) for l in pg)
-            ev.append(f"Dialogue: 2,{_ts(s0)},{_ts(e0)},Sub,,0,0,0,,{{\\c{st['highlight_color']}}}{pop}{body}")
-            if rules["sfx"]["emphasis_pop"]: sfx.append((s0, "pop"))
-        else:
-            body = "\\N".join(l for pg in _wrap(t, st["max_chars_per_line"], st["max_lines"]) for l in pg)
-            ev.append(f"Dialogue: 0,{_ts(s0)},{_ts(e0)},Sub,,0,0,0,,{body}")
+            q = cs["title"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
+            ev_(s0, e0, _cap(cs["font_title"], q["size"], cx, int(H * q["y"]), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
+            ev_(s0, e0, _cap(cs["font_title"], q["size"], cx, int(H * q["y"]), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
+        else:  # 단독 태그 = 검정 둥근 라벨
+            q = cs["chip"]; body = "\\N".join(l for pg in _wrap(t, 14, 3) for l in pg)
+            ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
         shown.append((s0, e0, t))
+    if stack:
+        q = cs["stack"]; step = dur / (len(chips) + 1)
+        for k, c in enumerate(chips):
+            s0 = a + step * (k + 1) - step * 0.5 + q["first_after"]; y = q["y"][min(k, len(q["y"]) - 1)]
+            ev_(s0, b, _cap(cs["font_plain"], q["size"], cx, int(H * y), c["text"], shad=2, extra="\\b1\\4c&H000000&"), 2)
+            shown.append((s0, b, c["text"]))
 
 
 def build_ass(units, pieces, rules, work):
@@ -158,6 +175,7 @@ Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackC
 Style: Sub,{st['font']},{st['size']},{st['color']},&H000000FF,{st['outline_color']},&H80000000,{-1 if st['bold'] else 0},0,0,0,100,100,0,0,1,{st['outline']},{st['shadow']},2,60,60,{st['margin_v']},1
 Style: Emph,{st['font']},{em['size']},{em['color']},&H000000FF,{st['outline_color']},&H80000000,-1,0,0,0,100,100,0,0,1,{em['outline']},3,5,40,40,0,1
 Style: Hook,{st['font']},{hk['size']},{em['color']},&H000000FF,{st['outline_color']},&H80000000,-1,0,0,0,100,100,0,0,1,{em['outline']},3,8,60,60,{hk['pos_y']},1
+Style: Cap,NanumGothic,46,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
 Style: Cta,{st['font']},{ou['size']},&H00FFFFFF,&H000000FF,{st['outline_color']},&H80000000,-1,0,0,0,100,100,0,0,1,6,2,5,60,60,0,1
 
 [Events]
@@ -244,7 +262,7 @@ def finalize(base, ass, sfx, total, rules, out, work):
         mix.append(f"[s{k}]"); idx += 1
     fade = rules["outro"]["audio_fade"]
     chains.append("".join(mix) + f"amix=inputs={len(mix)}:normalize=0:duration=first:dropout_transition=0,"
-                  f"loudnorm=I={au['loudnorm_i']}:TP={au['loudnorm_tp']}:LRA={au['loudnorm_lra']},"
+                  + (f"loudnorm=I={au['loudnorm_i']}:TP={au['loudnorm_tp']}:LRA={au['loudnorm_lra']}," if au.get("loudnorm", True) else "") +
                   f"atrim=0:{total:.3f},afade=t=out:st={max(0,total-fade):.3f}:d={fade}[aout]")
     fc = ";".join(chains)
     # ass 는 작업 폴더 기준 상대경로로 (경로 이스케이프 문제 회피)

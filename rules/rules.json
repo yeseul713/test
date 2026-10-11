@@ -1,7 +1,7 @@
 {
   "meta": {
-    "status": "provisional",
-    "note": "레퍼런스 3개 영상을 다운로드하지 못해(네트워크 차단) 숏폼 일반 관행으로 만든 임시 값입니다. `ve.py analyze` 실행 후 `--apply` 하면 레퍼런스 실측값으로 덮어씁니다."
+    "status": "derived-from-ep1",
+    "note": "1편 완성본(28.5초, 사용자 업로드) 1개를 장면 단위로 직접 분해해 반영. 유튜브 레퍼런스 3개는 아직 미분석."
   },
   "canvas": {
     "w": 1080,
@@ -15,11 +15,11 @@
     "silence_db": -35,
     "min_silence": 0.3,
     "min_speech": 0.25,
-    "max_shot": 2.6,
-    "min_shot": 0.9,
+    "max_shot": 2.0,
+    "min_shot": 1.0,
     "zoom_levels": [
       1.0,
-      1.14
+      1.0
     ],
     "sec_per_char": 0.17
   },
@@ -52,11 +52,11 @@
     "size": 96,
     "pos_y": 520,
     "duration": 1.8,
-    "zoom": 1.16,
+    "zoom": 1.0,
     "max_chars_per_line": 9
   },
   "outro": {
-    "enabled": true,
+    "enabled": false,
     "cta_text": "팔로우하고 다음 영상도 받아가세요",
     "duration": 2.0,
     "size": 56,
@@ -65,14 +65,14 @@
   },
   "sfx": {
     "volume_db": -9,
-    "unit_whoosh": true,
-    "emphasis_pop": true,
-    "hook_hit": true,
-    "outro_ding": true,
+    "unit_whoosh": false,
+    "emphasis_pop": false,
+    "hook_hit": false,
+    "outro_ding": false,
     "lead": 0.05
   },
   "bgm": {
-    "enabled": true,
+    "enabled": false,
     "volume_db": -24,
     "duck": true,
     "fade_in": 0.5
@@ -84,7 +84,8 @@
   "audio": {
     "loudnorm_i": -14,
     "loudnorm_tp": -1.5,
-    "loudnorm_lra": 11
+    "loudnorm_lra": 11,
+    "loudnorm": true
   },
   "privacy": {
     "enabled": true,
@@ -120,5 +121,47 @@
     "깨끗히": "깨끗이",
     "일부로": "일부러"
   },
-  "user_feedback_rules": []
+  "user_feedback_rules": [],
+  "caption_style": {
+    "font_plain": "NanumGothic",
+    "font_bold": "NanumBarunGothic",
+    "font_title": "NanumSquareRound",
+    "plain": {
+      "size": 54,
+      "y": 0.79,
+      "max_chars": 16,
+      "shadow": 2
+    },
+    "hook": {
+      "size": 104,
+      "y": 0.33,
+      "max_chars": 7
+    },
+    "title": {
+      "size": 100,
+      "y": 0.47,
+      "max_chars": 9,
+      "outer": 12,
+      "inner": 3
+    },
+    "chip": {
+      "size": 58,
+      "y": 0.7,
+      "pad": 30
+    },
+    "stack": {
+      "size": 58,
+      "y": [
+        0.2,
+        0.31,
+        0.43,
+        0.54,
+        0.66
+      ],
+      "min_items": 3,
+      "first_after": 0.0
+    },
+    "min_big_sec": 1.2,
+    "photo_drift": 0.04
+  }
 }

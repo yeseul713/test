@@ -5,6 +5,19 @@ from .script_plan import parse_script
 from . import render, qa
 
 
+def _split(a, b, out, rules):
+    """1편 스타일 A/B 좌우 분할: 검은 배경, 각 540폭, 세로 21%~79% 영역."""
+    from PIL import Image
+    W, H = rules["canvas"]["w"], rules["canvas"]["h"]
+    canvas = Image.new("RGB", (W, H), "black"); y0, hh = int(H * 0.21), int(H * 0.58)
+    for k, f in enumerate((a, b)):
+        im = Image.open(f).convert("RGB"); sc = max(W // 2 / im.width, hh / im.height)
+        im = im.resize((int(im.width * sc) + 1, int(im.height * sc) + 1), Image.LANCZOS)
+        l, t = (im.width - W // 2) // 2, (im.height - hh) // 2
+        canvas.paste(im.crop((l, t, l + W // 2, t + hh)), (k * W // 2, y0))
+    canvas.save(out)
+
+
 def _compose(img, out, rules):
     """사진 → 1080x1920 정지 이미지(세로 사진은 꽉 채움, 그 외는 블러 배경 + 전체 보임)."""
     W, H = rules["canvas"]["w"], rules["canvas"]["h"]
@@ -29,10 +42,13 @@ def build(images_dir, script, mapping, out):
         a, b = map(float, re.search(r"(\d+)\s*-\s*(\d+)\s*$", u["raw"]).groups())
         d = (b - a) / len(blk)
         for k, (key, (fx, fy)) in enumerate(blk):
-            still = work / f"still_{ui}_{k}.png"; _compose(imgs[key], still, rules)
-            n = int(d * fps); zin = flip % 2 == 0; flip += 1
-            z = f"1+0.14*on/{n}" if zin else f"1.14-0.14*on/{n}"
-            if ui == 0: z = f"1.18-0.10*on/{n}"  # 훅: 크게 시작해 살짝 빠지며 전신을 보여줌
+            still = work / f"still_{ui}_{k}.png"
+            if "+" in key:
+                ka, kb = key.split("+"); _split(imgs[ka], imgs[kb], still, rules); fx, fy = 0.5, 0.5
+            else:
+                _compose(imgs[key], still, rules)
+            n = int(d * fps); zin = flip % 2 == 0; flip += 1; dr = rules["caption_style"]["photo_drift"]
+            z = f"1+{dr}*on/{n}" if zin else f"{1+dr}-{dr}*on/{n}"  # 정지 사진이 멈춰 보이지 않도록 아주 약한 이동만
             vf = (f"scale=2160:3840,zoompan=z='{z}':x='(iw-iw/zoom)*{fx}':y='(ih-ih/zoom)*{fy}':d={n}:s={W}x{H}:fps={fps},"
                   f"setsar=1,format=yuv420p")
             piece = work / f"piece_{len(files):03d}.mp4"
@@ -42,7 +58,7 @@ def build(images_dir, script, mapping, out):
     (work / "concat.txt").write_text("".join(f"file '{f.name}'\n" for f in files))
     base = work / "base.mp4"
     ff(["-f", "concat", "-safe", "0", "-i", work / "concat.txt", "-c", "copy", base])
-    rules["bgm"]["volume_db"] = -13  # 목소리가 없으니 배경음을 키움
+    rules["audio"]["loudnorm"] = False  # 1편처럼 음악·효과음 없음, 목소리는 나중에 사용자가 입힘
     ass, sfx, total, typo, shown, _ = render.build_ass(units, pieces, rules, work)
     render.finalize(base.resolve(), ass, sfx, total, rules, out, work)
     issues = qa.check_format(str(out), rules) + qa.check_subtitles(units, shown, rules) + qa.check_freeze(str(out), rules) \

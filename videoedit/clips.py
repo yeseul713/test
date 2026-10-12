@@ -26,7 +26,7 @@ def build(clip_dir, script, mapping, out):
     work = out.parent / (out.stem + "_work"); work.mkdir(exist_ok=True)
     files_by = {p.stem: p for p in pathlib.Path(clip_dir).glob("*.mp4")}
     find = lambda key: next(p for k, p in files_by.items() if k.startswith(key))
-    orig_dir = pathlib.Path(clip_dir).parent / "ep2"
+    cd = pathlib.Path(clip_dir); orig_dir = cd.parent / cd.name.rstrip("p")
     find_orig = lambda key: next(p for p in sorted(orig_dir.iterdir()) if p.stem.startswith(key))
     pieces, files = [], []
     for ui, (u, blk) in enumerate(zip(units, mp)):

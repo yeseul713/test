@@ -14,17 +14,21 @@ def _parse_blocks(text):
         if line.startswith("## "):
             cur = {"raw": line[3:], "text": "", "emph": [], "broll": None, "captions": [], "memo": ""}
             units.append(cur); continue
-        m = re.match(r"(말|크게|자막|태그|메모|CTA)\s*:\s*(.+)", line)
+        m = re.match(r"(\+?)(말|크게|자막|태그|메모|CTA|위치)\s*:\s*(.+)", line)
         if not m or cur is None:
             continue
-        k, v = m.groups()
+        plus, k, v = m.groups()
         if k == "말": cur["text"] = v
         elif k == "메모": cur["memo"] = v
-        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta"}[k]})
+        elif k == "위치":
+            cur["side"] = "left" if "왼" in v else "right" if "오" in v else "center"
+            if "아래" in v:
+                cur["plain_y"] = 0.86  # 분할 영상처럼 아래가 검은 영역일 때 일반 자막을 더 아래로
+        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta"}[k], "with_prev": bool(plus)})
     for u in units:
         if not u["text"]:
             raise SystemExit(f"'{u['raw']}' 블록에 '말:' 이 없습니다.")
-        u["expect"] = " ".join(c["text"] for c in u["captions"])
+        u["expect"] = " ".join(c["text"].replace("|", " ") for c in u["captions"])
     return units
 
 

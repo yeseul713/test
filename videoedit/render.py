@@ -117,6 +117,23 @@ def _cap(font, size, x, y, text, fill="&HFFFFFF&", bord=0, bcol="&H000000&", sha
     return f"{{\\an5\\pos({x},{y})\\fn{font}\\fs{size}\\c{fill}\\bord{bord}\\3c{bcol}\\shad{shad}{extra}}}{text}"
 
 
+def _em_width(line):
+    """글자 폭 추정(한글=1em, 영문·숫자≈0.68, 공백·부호≈0.35)."""
+    return sum(1.0 if ord(ch) > 0x2E80 else 0.68 if ch.isalnum() else 0.35 for ch in line)
+
+
+def _fit_lines(t, wrap, maxc, size, max_w, pad=0):
+    """'|' 는 강제 줄바꿈. wrap=False 면 한 줄. 가장 긴 줄이 max_w 를 넘으면 글자 크기를 줄인다."""
+    if "|" in t:
+        lines = [x.strip() for x in t.split("|")]
+    elif wrap:
+        lines = [l for pg in _wrap(t, maxc, 9) for l in pg]
+    else:
+        lines = [t]
+    longest = max(_em_width(l) for l in lines)
+    return "\\N".join(lines), min(size, int((max_w - 2 * pad) / (longest * 0.95)))
+
+
 def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
     """1편 실측 스타일: 훅=흰색 대형 여러 줄 / 자막=하단 작은 흰색 / 큰자막=흰 스티커(외곽선) / 태그=검정 둥근 라벨,
     태그 3개 이상=세로로 하나씩 쌓임. 한 블록 안의 문구는 순서대로 나타난다."""
@@ -129,40 +146,40 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
     cta = [c for c in caps if c["kind"] == "cta"]  # 마지막 몇 초에 다른 자막과 겹쳐 뜨는 참여 유도 문구
     seq = [c for c in caps if c["kind"] != "cta" and not (stack and c["kind"] == "chip")]
     wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
-    tw = sum(wts); acc = a; slot = {}
+    keep = [(c, w) for c, w in zip(seq, wts) if not c.get("with_prev")]
+    tw = sum(w for _, w in keep) or 1.0; acc = a; slot = {}
     for c, w in zip(seq, wts):
-        slot[id(c)] = (acc, acc + dur * w / tw); acc += dur * w / tw
+        if c.get("with_prev"):  # 앞 문구와 같은 시간에 함께 표시
+            slot[id(c)] = last; continue
+        slot[id(c)] = last = (acc, acc + dur * w / tw); acc += dur * w / tw
     ev_ = lambda s0, e0, t, layer=0: ev.append(f"Dialogue: {layer},{_ts(s0)},{_ts(e0)},Cap,,0,0,0,,{t}")
     for c in seq:
         s0, e0 = slot[id(c)]; t = c["text"]
         if c["kind"] == "plain":
-            q = cs["plain"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 3) for l in pg)
-            ev_(s0, e0, _cap(cs["font_plain"], q["size"], cx, int(H * q["y"]), body, shad=q["shadow"], extra="\\4c&H000000&"))
+            q = cs["plain"]; body, size = _fit_lines(t, True, q["max_chars"], q["size"], 960)
+            ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * u.get("plain_y", q["y"])), body, shad=q["shadow"], extra="\\4c&H000000&"))
         elif c["kind"] == "big" and i == 0:
-            q = cs["hook"]; body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
-            ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, shad=0, extra="\\b1"), 2)
+            q = cs["hook"]; body, size = _fit_lines(t, True, q["max_chars"], q["size"], 960)
+            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * q["y"]), body, shad=0, extra="\\b1"), 2)
         elif c["kind"] == "big":
-            q = cs["title"]; size = q["size"]
-            if q.get("wrap", True):
-                body = "\\N".join(l for pg in _wrap(t, q["max_chars"], 9) for l in pg)
-            else:  # 줄바꿈 금지: 한 줄로 두고, 화면 폭을 넘으면 글자 크기를 줄임
-                body = t; em_w = sum(0.5 if ch in " .,?!~=-…'" else 1.0 for ch in t)
-                size = min(size, int((q["max_width_px"] - 2 * q["outer"]) / (em_w * 0.95)))
+            q = cs["title"]
+            body, size = _fit_lines(t, q.get("wrap", True), q["max_chars"], q["size"], q["max_width_px"], q["outer"])
             ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
             ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
         else:  # 단독 태그 = 검정 둥근 라벨
-            q = cs["chip"]; body = "\\N".join(l for pg in _wrap(t, 14, 3) for l in pg)
-            ev_(s0, e0, _cap(cs["font_bold"], q["size"], cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
-        shown.append((s0, e0, t))
+            q = cs["chip"]; body, size = _fit_lines(t, True, 16, q["size"], 880, q["pad"])
+            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
+        shown.append((s0, e0, t.replace("|", " ")))
     for c in cta:
         q = cs["plain"]; sec = cs.get("cta_sec", 1.5)
         ev_(max(a, b - sec), b, _cap(cs["font_plain"], q["size"], cx, int(H * q["y"]), c["text"], shad=q["shadow"], extra="\\fad(250,0)\\4c&H000000&"), 3)
         shown.append((max(a, b - sec), b, c["text"]))
     if stack:
         q = cs["stack"]; step = dur / (len(chips) + 1)
+        sx = {"left": int(W * 0.23), "right": int(W * 0.77)}.get(u.get("side"), cx)
         for k, c in enumerate(chips):
             s0 = a + step * (k + 1) - step * 0.5 + q["first_after"]; y = q["y"][min(k, len(q["y"]) - 1)]
-            ev_(s0, b, _cap(cs["font_plain"], q["size"], cx, int(H * y), c["text"], shad=2, extra="\\b1\\4c&H000000&"), 2)
+            ev_(s0, b, _cap(cs["font_plain"], q["size"], sx, int(H * y), c["text"], shad=2, extra="\\b1\\4c&H000000&"), 2)
             shown.append((s0, b, c["text"]))
 
 

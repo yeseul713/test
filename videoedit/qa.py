@@ -15,18 +15,23 @@ PII = [
 ]
 
 
+def reduce_fix(text, rules):
+    for b, g in rules["typo_fixes"].items():
+        text = text.replace(b, g)
+    return text
+
+
 def check_subtitles(units, shown, rules):
     """대본 문장 ↔ 실제 자막 비교 + 흔한 맞춤법/형식 오류."""
     issues, joined = [], " ".join(s[2] for s in shown)
     jn = re.sub(r"\s+", "", joined)
     for i, u in enumerate(units):
-        if re.sub(r"\s+", "", u.get("expect", u["text"])) not in jn:
-            # 오타 자동수정으로 달라졌을 수 있으니 수정본으로 한 번 더 확인
-            fixed = u.get("expect", u["text"])
-            for b, g in rules["typo_fixes"].items():
-                fixed = fixed.replace(b, g)
-            if re.sub(r"\s+", "", fixed) not in jn:
-                issues.append({"type": "typo", "msg": f"{i+1}번째 문장이 자막에 온전히 없음: {u['text']}"})
+        # 블록형 대본은 문구별로, 간단형은 문장 전체로 자막에 있는지 확인(표시 순서는 시간순이라 달라질 수 있음)
+        targets = [c["text"].replace("|", " ") for c in u["captions"]] if u.get("captions") else [u["text"]]
+        for tgt in targets:
+            cand = [tgt] + [reduce_fix(tgt, rules)]
+            if not any(re.sub(r"\s+", "", c) in jn for c in cand):
+                issues.append({"type": "typo", "msg": f"{i+1}번째 블록 문구가 자막에 온전히 없음: {tgt}"})
     for t, _, text in shown:
         if re.search(r"[ㄱ-ㅎㅏ-ㅣ]{1}(?![ㄱ-ㅎㅏ-ㅣ])", text) and not re.search(r"[ㅋㅎㅠㅜ]", text):
             issues.append({"type": "typo", "msg": f"{t:.1f}s 자모 단독 문자: {text}"})

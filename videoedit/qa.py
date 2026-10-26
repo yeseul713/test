@@ -27,7 +27,7 @@ def check_subtitles(units, shown, rules):
     jn = re.sub(r"\s+", "", joined)
     for i, u in enumerate(units):
         # 블록형 대본은 문구별로, 간단형은 문장 전체로 자막에 있는지 확인(표시 순서는 시간순이라 달라질 수 있음)
-        targets = [c["text"].replace("|", " ") for c in u["captions"] if c["kind"] not in ("line", "mark")] if "captions" in u else [u["text"]]
+        targets = [c["text"].replace("|", " ") for c in u["captions"] if c["kind"] not in ("line", "mark", "gtext")] if "captions" in u else [u["text"]]
         for tgt in targets:
             cand = [tgt] + [reduce_fix(tgt, rules)]
             if not any(re.sub(r"\s+", "", c) in jn for c in cand):

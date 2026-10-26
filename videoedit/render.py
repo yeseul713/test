@@ -143,8 +143,8 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
     chips = [c for c in caps if c["kind"] == "chip"]
     stack = len(chips) >= cs["stack"]["min_items"]
     cta = [c for c in caps if c["kind"] == "cta"]
-    over = [c for c in caps if c["kind"] in ("line", "mark")]
-    seq = [c for c in caps if c["kind"] not in ("cta", "line", "mark") and not (stack and c["kind"] == "chip")]
+    over = [c for c in caps if c["kind"] in ("line", "mark", "gtext")]
+    seq = [c for c in caps if c["kind"] not in ("cta", "line", "mark", "gtext") and not (stack and c["kind"] == "chip")]
     wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
     keep = [(c, w) for c, w in zip(seq, wts) if not c.get("with_prev")]
     tw = sum(w for _, w in keep) or 1.0; acc = a; slot = {}; last = (a, b)
@@ -171,7 +171,7 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
                 for n, (l, sz) in enumerate(zip(lines, sizes)):
                     yc = int(top + sum(hs[:n]) + dz["gap"] * n + hs[n] / 2)
                     main = (n == 0 or cont[n]); f = dz["main_font"] if main else dz["sub_font"]; col = "&HFFFFFF&" if main else dz["sub_color"]
-                    ev_(s0, e0, _cap(f, sz, cx, yc, l, fill=col, bord=dz["pad"], bcol="&H000000&", shad=0, extra=f"\\b{1 if main else 0}\\3a{dz['alpha']}"))
+                    ev_(s0, e0, _cap(f, sz, cx, yc, l, fill=col, bord=dz["pad"], bcol="&H000000&", shad=dz.get("shadow", 0), extra=f"\\b{1 if (main and dz.get('bold', True)) else 0}\\3a{dz['alpha']}\\4a&H60&"))
             else:
                 body, size = _fit_lines(t, True, q["max_chars"], size0, 960)
                 ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=q["shadow"], extra="\\4c&H000000&"))
@@ -204,6 +204,9 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
             w_px, th = int((x1 - x0) * W), 9
             draw = f"{{\\an7\\pos({int(x0 * W)},{int(yy * H)})\\p1\\c&HFFFFFF&\\bord3\\3c&H000000&\\shad0}}m 0 0 l {w_px} 0 {w_px} {th} 0 {th}{{\\p0}}"
             ev_(a + dur * st, b, draw, 3)
+        elif c["kind"] == "gtext":  # 짧게 표시하는 글자: "글자,x비율,y비율,시작비율,길이초"
+            g = t.split(","); gx, gy, gst, gd = float(g[1]), float(g[2]), float(g[3]), float(g[4])
+            ev_(a + dur * gst, a + dur * gst + gd, _cap(cs["font_bold"], 84, int(W * gx), int(H * gy), g[0], bord=4, bcol="&H000000&", extra="\\b1\\fad(120,160)"), 3)
         else:  # 선택 표시
             mx = int(W * (0.25 if "왼" in t else 0.75))
             ev_(a, b, _cap(cs["font_bold"], 44, mx, int(H * 0.19), "▼ 선택", shad=2, extra="\\b1\\4c&H000000&"), 3)

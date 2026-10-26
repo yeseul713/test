@@ -190,6 +190,13 @@
         "source_folders 규칙 추가",
         "5편 비교 컷을 5편 폴더(IMG_1101 로우, IMG_1102 하이)로 전면 교체"
       ]
+    },
+    {
+      "date": "2026-10-26",
+      "feedback": "자막 폰트를 시스템 폰트 느낌의 미니멀한 스타일로",
+      "applied": [
+        "design: NanumBarunGothic 보통 굵기, 배경 박스 없음, 얇은 그림자(서버에 애플/윈도우 시스템 폰트가 없어 가장 비슷한 나눔바른고딕 사용)"
+      ]
     }
   ],
   "caption_style": {
@@ -245,14 +252,16 @@
       "split_y": 0.91
     },
     "design": {
-      "main": 66,
+      "main": 64,
       "sub": 44,
-      "pad": 18,
-      "alpha": "&H70&",
-      "gap": 6,
-      "main_font": "NanumSquareRound",
+      "pad": 2,
+      "alpha": "&HFF&",
+      "gap": 2,
+      "shadow": 3,
+      "bold": false,
+      "main_font": "NanumBarunGothic",
       "sub_font": "NanumBarunGothic",
-      "sub_color": "&HE0E0E0&"
+      "sub_color": "&HE6E6E6&"
     }
   },
   "export": {

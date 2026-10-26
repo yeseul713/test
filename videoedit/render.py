@@ -163,7 +163,8 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
                 dz = cs["design"]; lines = [x.strip() for x in t.split("|")] if "|" in t else [t]
                 cont = [l.startswith("~") for l in lines]; lines = [l.lstrip("~") for l in lines]  # '~' = 앞 줄에 이어지는 같은 크기 줄
                 sizes = [dz["main"] if (n == 0 or cont[n]) else dz["sub"] for n in range(len(lines))]
-                if any(cont): sizes = [min(sizes)] * len(lines)
+                if any(cont):
+                    mn = min(sz for sz, c, n in zip(sizes, cont, range(len(lines))) if n == 0 or c); sizes = [mn if (n == 0 or cont[n]) else sz for n, sz in enumerate(sizes)]
                 sizes = [min(sz, int((900 - 2 * dz["pad"]) / (_em_width(l) * 0.95))) for sz, l in zip(sizes, lines)]
                 hs = [int(sz * 1.18) + 2 * dz["pad"] // 2 for sz in sizes]; total = sum(hs) + dz["gap"] * (len(lines) - 1)
                 top = H * y - total / 2

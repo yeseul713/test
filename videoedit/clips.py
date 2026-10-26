@@ -12,12 +12,17 @@ def _drift_sq(drift, d, W):
     return f",scale=w='iw*(1+{drift}*t/{d:.3f})':h=-2:eval=frame,crop={W}:1080:(iw-{W})/2:(ih-1080)/2"
 
 
-def _piece_pair(src_a, ss_a, src_b, ss_b, d, out, rules, drift=0.0):
+def _piece_pair(src_a, ss_a, src_b, ss_b, d, out, rules, drift=0.0, zoomcrop=None):
     """로우|하이 같은 두 영상을 좌우로 나란히: 각 540x1080 칸, 위아래 검정(1편의 A/B 분할 컷과 같은 모양)."""
     W, H, fps = rules["canvas"]["w"], rules["canvas"]["h"], rules["canvas"]["fps"]
     half = W // 2
     fr = rules["framing"]["pair"]
-    cell = f"scale={fr['sw']}:{fr['sh']},crop={half}:1080:{fr['x']}:{fr['y']},setsar=1,fps={fps}"
+    if zoomcrop:  # 하체 확대 비교: 원본(4K)에서 (cx,cy) 중심 w×h 비율로 잘라 칸(540x1080)에 채움
+        zc = zoomcrop
+        cell = (f"crop=iw*{zc['w']}:ih*{zc['h']}:iw*({zc['cx']}-{zc['w']}/2):ih*({zc['cy']}-{zc['h']}/2),"
+                f"scale={half}:1080,setsar=1,fps={fps}")
+    else:
+        cell = f"scale={fr['sw']}:{fr['sh']},crop={half}:1080:{fr['x']}:{fr['y']},setsar=1,fps={fps}"
     fc = f"[0:v]{cell}[a];[1:v]{cell}[b];[a][b]hstack{_drift_sq(drift, d, W)},pad={W}:{H}:0:(oh-ih)/2:black,format=yuv420p[v]"
     ff(["-ss", f"{ss_a:.3f}", "-t", f"{d:.3f}", "-i", src_a, "-ss", f"{ss_b:.3f}", "-t", f"{d:.3f}", "-i", src_b,
         "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
@@ -58,7 +63,10 @@ def build(clip_dir, script, mapping, out):
                 raise SystemExit(f"{c['f']} 의 {c['ss']}초부터 {d:.1f}초는 영상 길이를 넘습니다.")
             piece = work / f"piece_{len(files):03d}.mp4"
             if c.get("mode") == "split_pair":
-                _piece_pair(str(src), c["ss"], str(find(c["f2"])), c["ss2"], d, piece, rules, c.get("drift", 0.0))
+                if c.get("orig"):
+                    _piece_pair(str(find_orig(c["f"])), c["ss"], str(find_orig(c["f2"])), c["ss2"], d, piece, rules, 0.0, c.get("zoomcrop"))
+                else:
+                    _piece_pair(str(src), c["ss"], str(find(c["f2"])), c["ss2"], d, piece, rules, c.get("drift", 0.0))
                 pieces.append({"unit": ui, "real_dur": duration(piece)}); files.append(piece); continue
             _piece(str(src), c["ss"], d, c.get("mode", "cover"), piece, rules,
                    {"zoom": c["zoom"], "cx": c["cx"], "cy": c["cy"]} if "zoom" in c else None, c.get("drift", 0.0))

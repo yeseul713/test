@@ -50,7 +50,7 @@ def build(clip_dir, script, mapping, out):
     find_orig = lambda key: next(p for p in sorted(orig_dir.iterdir()) if p.stem.startswith(key))
     pieces, files = [], []
     for ui, (u, blk) in enumerate(zip(units, mp)):
-        a, b = map(float, re.search(r"(\d+)\s*-\s*(\d+)\s*$", u["raw"]).groups())
+        a, b = map(float, re.search(r"([\d.]+)\s*-\s*([\d.]+)\s*$", u["raw"]).groups())
         ws = [c.get("w", 1.0) for c in blk]; tot = sum(ws)
         for c, w in zip(blk, ws):
             src = find_orig(c["f"]) if c.get("orig") else find(c["f"]); d = (b - a) * w / tot

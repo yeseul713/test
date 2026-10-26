@@ -50,6 +50,8 @@ def edit(footage, script, out, broll_base=None, max_fix_rounds=2):
     remaining = [i for i in qa.run_all(str(out), units, shown, pieces, rules) if i["type"] != "pii"]
     if rules["privacy"]["enabled"]:
         remaining += qa.scan_privacy(str(out), rules)
+    from .export import export_like_ref
+    export_like_ref(out)
     report = write_report(out, units, mode, pieces, total, log, remaining, rules)
     return report
 

@@ -149,6 +149,13 @@
       "applied": [
         "대본 'CTA:' 항목: 마지막 1.5초 하단 일반 자막 스타일, 페이드인"
       ]
+    },
+    {
+      "date": "2026-10-26",
+      "feedback": "첨부한 영상(1편)과 포맷이 동일해야 해",
+      "applied": [
+        "export 규격을 1편과 동일한 .mov HEVC로 고정"
+      ]
     }
   ],
   "caption_style": {
@@ -195,5 +202,24 @@
     "min_big_sec": 1.2,
     "photo_drift": 0.04,
     "cta_sec": 1.5
+  },
+  "export": {
+    "container": "mov",
+    "video": "hevc",
+    "profile": "main",
+    "level": "4.0",
+    "tag": "hvc1",
+    "pix_fmt": "yuv420p",
+    "color": "bt709",
+    "range": "tv",
+    "fps": 30,
+    "video_kbps": 7150,
+    "bframes": 0,
+    "keyint": 30,
+    "audio": "aac",
+    "audio_hz": 44100,
+    "audio_ch": 2,
+    "audio_kbps": 96,
+    "note": "1편 완성본(사용자 첨부 .mov)과 동일한 규격. 모든 편 최종 출력은 이 규격의 .mov"
   }
 }

@@ -70,4 +70,6 @@ def build(clip_dir, script, mapping, out):
     render.finalize(base.resolve(), ass, sfx, total, rules, out, work)
     issues = qa.check_format(str(out), rules) + qa.check_subtitles(units, shown, rules) + qa.check_freeze(str(out), rules) \
         + qa.check_repetition(str(out), pieces, rules) + qa.scan_privacy(str(out), rules)
+    from .export import export_like_ref
+    export_like_ref(out)  # 1편과 같은 규격의 .mov 도 함께 저장
     return out, issues, total, typo

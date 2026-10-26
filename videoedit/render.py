@@ -135,56 +135,64 @@ def _fit_lines(t, wrap, maxc, size, max_w, pad=0):
 
 
 def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
-    """1편 실측 스타일: 훅=흰색 대형 여러 줄 / 자막=하단 작은 흰색 / 큰자막=흰 스티커(외곽선) / 태그=검정 둥근 라벨,
-    태그 3개 이상=세로로 하나씩 쌓임. 한 블록 안의 문구는 순서대로 나타난다."""
+    """1편 실측 스타일(rules.caption_style). 훅=큰 흰 글씨 여러 줄(줄 간격 넓게) / 자막=흰색 / 분할 자막=검은 영역 안 /
+    작은 문구 / 제목=흰 스티커 / 라벨=검정 둥근 상자 / 키워드=세로 쌓기. 한 블록의 문구는 순서대로, '+' 는 앞 문구와 동시에."""
     cs, W, H = rules["caption_style"], rules["canvas"]["w"], rules["canvas"]["h"]
-    cx = W // 2; dur = b - a
+    cx = W // 2; dur = b - a; split = "plain_y" in u
     caps = [dict(c, text=fix_typos(c["text"], rules, typo_log)) for c in u["captions"]]
     chips = [c for c in caps if c["kind"] == "chip"]
     stack = len(chips) >= cs["stack"]["min_items"]
-    # 시간 배분: 큰자막은 최소 길이 보장, 스택 태그는 마지막까지 유지
-    cta = [c for c in caps if c["kind"] == "cta"]  # 마지막 몇 초에 다른 자막과 겹쳐 뜨는 참여 유도 문구
-    over = [c for c in caps if c["kind"] in ("small", "line", "mark")]  # 다른 자막과 겹쳐 함께 뜨는 보조 요소
-    seq = [c for c in caps if c["kind"] not in ("cta", "small", "line", "mark") and not (stack and c["kind"] == "chip")]
+    cta = [c for c in caps if c["kind"] == "cta"]
+    over = [c for c in caps if c["kind"] in ("line", "mark")]
+    seq = [c for c in caps if c["kind"] not in ("cta", "line", "mark") and not (stack and c["kind"] == "chip")]
     wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
     keep = [(c, w) for c, w in zip(seq, wts) if not c.get("with_prev")]
-    tw = sum(w for _, w in keep) or 1.0; acc = a; slot = {}
+    tw = sum(w for _, w in keep) or 1.0; acc = a; slot = {}; last = (a, b)
     for c, w in zip(seq, wts):
-        if c.get("with_prev"):  # 앞 문구와 같은 시간에 함께 표시
+        if c.get("with_prev"):
             slot[id(c)] = last; continue
         slot[id(c)] = last = (acc, acc + dur * w / tw); acc += dur * w / tw
     ev_ = lambda s0, e0, t, layer=0: ev.append(f"Dialogue: {layer},{_ts(s0)},{_ts(e0)},Cap,,0,0,0,,{t}")
     for c in seq:
-        s0, e0 = slot[id(c)]; t = c["text"]
-        if c["kind"] == "plain":
-            q = cs["plain"]; body, size = _fit_lines(t, True, q["max_chars"], q["size"], 960)
-            ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * u.get("plain_y", q["y"])), body, shad=q["shadow"], extra="\\4c&H000000&"))
-        elif c["kind"] == "big" and i == 0:
-            q = cs["hook"]; body, size = _fit_lines(t, len(t) > 10, q["max_chars"], q["size"], 960)  # 짧은 훅은 한 줄
-            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * u.get("big_y", q["y"])), body, shad=0, extra="\\b1"), 2)
-        elif c["kind"] == "big":
-            q = cs["title"]
-            body, size = _fit_lines(t, q.get("wrap", True), q["max_chars"], q["size"], q["max_width_px"], q["outer"])
-            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * u.get("big_y", q["y"])), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
-            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * u.get("big_y", q["y"])), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
-        else:  # 단독 태그 = 검정 둥근 라벨
+        s0, e0 = slot[id(c)]; t = c["text"]; k = c["kind"]
+        if k == "big" and split and i != 0:
+            k = "plain"  # 1편 분할 컷처럼 분할 영상 위에는 큰 글씨를 얹지 않고 아래 검은 영역에 자막으로
+        if k == "plain":
+            q = cs["plain"]; size0 = q["split_size"] if split else q["size"]; y = (q["split_y"] if split else q["y"])
+            body, size = _fit_lines(t, True, q["max_chars"], size0, 960)
+            ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=q["shadow"], extra="\\4c&H000000&"))
+        elif k == "small":
+            q = cs["small"]; y = q["split_y"] if split else q["y"]
+            body, size = _fit_lines(t, True, 24, q["size"], 960)
+            ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=2, extra="\\4c&H000000&"), 3)
+        elif k == "big" and i == 0:  # 훅: 줄마다 따로 놓아 1편처럼 줄 간격을 넓게
+            q = cs["hook"]; lines = [x.strip() for x in t.split("|")] if "|" in t else ([t] if len(t) <= 10 else [l for pg in _wrap(t, q["max_chars"], 9) for l in pg])
+            size = min(q["size"], int(960 / (max(_em_width(l) for l in lines) * 0.95)))
+            for n, l in enumerate(lines):
+                yy = int(H * u.get("big_y", q["y"]) + (n - (len(lines) - 1) / 2) * q["pitch"] * H)
+                ev_(s0, e0, _cap(cs["font_bold"], size, cx, yy, l, shad=3, extra="\\b1\\4c&H000000&"), 2)
+        elif k == "big":  # 제목: 흰 스티커(안쪽 얇은 검정 선 + 바깥 두꺼운 흰 선)
+            q = cs["title"]; lines = [x.strip() for x in t.split("|")] if "|" in t else [t]
+            size = min(q["size"], int((q["max_width_px"] - 2 * q["outer"]) / (max(_em_width(l) for l in lines) * 0.95)))
+            for n, l in enumerate(lines):
+                yy = int(H * u.get("big_y", q["y"]) + (n - (len(lines) - 1) / 2) * size)
+                ev_(s0, e0, _cap(cs["font_title"], size, cx, yy, l, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
+                ev_(s0, e0, _cap(cs["font_title"], size, cx, yy, l, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
+        else:  # 라벨: 검정 둥근 상자
             q = cs["chip"]; body, size = _fit_lines(t, True, 16, q["size"], 880, q["pad"])
-            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * u.get("plain_y", q["y"])), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
+            y = (cs["plain"]["split_y"] + 0.07) if split else q["y"]
+            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * y), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
         shown.append((s0, e0, t.replace("|", " ")))
     for c in over:
-        t = c["text"]; q = cs["plain"]
-        if c["kind"] == "small":  # 작은 보조 문구: 일반 자막 바로 아래
-            y = u.get("plain_y", q["y"]) + 0.05
-            ev_(a, b, _cap(cs["font_plain"], int(q["size"] * 0.72), cx, int(H * y), t, shad=q["shadow"], extra="\\4c&H000000&"), 3)
-            shown.append((a, b, t))
-        elif c["kind"] == "line":  # 허리단 등 위치 표시용 짧은 가로선: "x시작,x끝,y[,나타나는 시점(블록 비율)]"
+        t = c["text"]
+        if c["kind"] == "line":  # 허리단 위치 가로선: "x시작,x끝,y[,나타나는 시점(블록 비율)]"
             v = [float(x) for x in t.split(",")]; x0, x1, yy = v[:3]; st = v[3] if len(v) > 3 else 0.5
             w_px, th = int((x1 - x0) * W), 9
             draw = f"{{\\an7\\pos({int(x0 * W)},{int(yy * H)})\\p1\\c&HFFFFFF&\\bord3\\3c&H000000&\\shad0}}m 0 0 l {w_px} 0 {w_px} {th} 0 {th}{{\\p0}}"
             ev_(a + dur * st, b, draw, 3)
-        elif c["kind"] == "mark":  # 선택한 쪽 위에 작은 표시
+        else:  # 선택 표시
             mx = int(W * (0.25 if "왼" in t else 0.75))
-            ev_(a, b, _cap(cs["font_bold"], 40, mx, int(H * 0.185), "▼ 선택", shad=2, extra="\\b1\\4c&H000000&"), 3)
+            ev_(a, b, _cap(cs["font_bold"], 44, mx, int(H * 0.19), "▼ 선택", shad=2, extra="\\b1\\4c&H000000&"), 3)
             shown.append((a, b, "선택"))
     for c in cta:
         q = cs["plain"]; sec = cs.get("cta_sec", 1.5)

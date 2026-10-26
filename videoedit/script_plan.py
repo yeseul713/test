@@ -24,7 +24,7 @@ def _parse_blocks(text):
         elif k == "위치":
             cur["side"] = "left" if "왼" in v else "right" if "오" in v else "center"
             if "아래" in v:
-                cur["plain_y"] = 0.86  # 분할 영상처럼 아래가 검은 영역일 때 일반 자막을 더 아래로
+                cur["plain_y"] = 0.838  # 분할 영상처럼 아래가 검은 영역일 때 일반 자막을 더 아래로
             if v.startswith("위") or " 위" in v or "위," in v:
                 cur["big_y"] = 0.115  # 위쪽 검은 영역에 큰 자막
         else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta", "작게": "small", "선": "line", "표시": "mark"}[k], "with_prev": bool(plus)})

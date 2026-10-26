@@ -16,7 +16,8 @@ def _piece_pair(src_a, ss_a, src_b, ss_b, d, out, rules, drift=0.0):
     """로우|하이 같은 두 영상을 좌우로 나란히: 각 540x1080 칸, 위아래 검정(1편의 A/B 분할 컷과 같은 모양)."""
     W, H, fps = rules["canvas"]["w"], rules["canvas"]["h"], rules["canvas"]["fps"]
     half = W // 2
-    cell = f"scale=648:1152,crop={half}:1080:54:36,setsar=1,fps={fps}"
+    fr = rules["framing"]["pair"]
+    cell = f"scale={fr['sw']}:{fr['sh']},crop={half}:1080:{fr['x']}:{fr['y']},setsar=1,fps={fps}"
     fc = f"[0:v]{cell}[a];[1:v]{cell}[b];[a][b]hstack{_drift_sq(drift, d, W)},pad={W}:{H}:0:(oh-ih)/2:black,format=yuv420p[v]"
     ff(["-ss", f"{ss_a:.3f}", "-t", f"{d:.3f}", "-i", src_a, "-ss", f"{ss_b:.3f}", "-t", f"{d:.3f}", "-i", src_b,
         "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-filter_complex", fc, "-map", "[v]", "-map", "2:a",

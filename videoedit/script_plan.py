@@ -14,21 +14,24 @@ def _parse_blocks(text):
         if line.startswith("## "):
             cur = {"raw": line[3:], "text": "", "emph": [], "broll": None, "captions": [], "memo": ""}
             units.append(cur); continue
-        m = re.match(r"(\+?)(말|크게|자막|태그|메모|CTA|위치)\s*:\s*(.+)", line)
+        m = re.match(r"(\+?)(말|크게|자막|작게|태그|선|표시|메모|CTA|위치|큰자막y)\s*:\s*(.+)", line)
         if not m or cur is None:
             continue
         plus, k, v = m.groups()
         if k == "말": cur["text"] = v
         elif k == "메모": cur["memo"] = v
+        elif k == "큰자막y": cur["big_y"] = float(v)
         elif k == "위치":
             cur["side"] = "left" if "왼" in v else "right" if "오" in v else "center"
             if "아래" in v:
                 cur["plain_y"] = 0.86  # 분할 영상처럼 아래가 검은 영역일 때 일반 자막을 더 아래로
-        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta"}[k], "with_prev": bool(plus)})
+            if v.startswith("위") or " 위" in v or "위," in v:
+                cur["big_y"] = 0.115  # 위쪽 검은 영역에 큰 자막
+        else: cur["captions"].append({"text": v, "kind": {"크게": "big", "자막": "plain", "태그": "chip", "CTA": "cta", "작게": "small", "선": "line", "표시": "mark"}[k], "with_prev": bool(plus)})
     for u in units:
         if not u["text"]:
             raise SystemExit(f"'{u['raw']}' 블록에 '말:' 이 없습니다.")
-        u["expect"] = " ".join(c["text"].replace("|", " ") for c in u["captions"])
+        u["expect"] = " ".join(c["text"].replace("|", " ") for c in u["captions"] if c["kind"] not in ("line", "mark"))
     return units
 
 

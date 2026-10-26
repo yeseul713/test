@@ -144,7 +144,8 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
     stack = len(chips) >= cs["stack"]["min_items"]
     # 시간 배분: 큰자막은 최소 길이 보장, 스택 태그는 마지막까지 유지
     cta = [c for c in caps if c["kind"] == "cta"]  # 마지막 몇 초에 다른 자막과 겹쳐 뜨는 참여 유도 문구
-    seq = [c for c in caps if c["kind"] != "cta" and not (stack and c["kind"] == "chip")]
+    over = [c for c in caps if c["kind"] in ("small", "line", "mark")]  # 다른 자막과 겹쳐 함께 뜨는 보조 요소
+    seq = [c for c in caps if c["kind"] not in ("cta", "small", "line", "mark") and not (stack and c["kind"] == "chip")]
     wts = [max(1.0, len(c["text"]) / 6) if c["kind"] != "big" else max(1.0, len(c["text"]) / 6, cs["min_big_sec"] / dur * len(seq)) for c in seq]
     keep = [(c, w) for c, w in zip(seq, wts) if not c.get("with_prev")]
     tw = sum(w for _, w in keep) or 1.0; acc = a; slot = {}
@@ -159,17 +160,32 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
             q = cs["plain"]; body, size = _fit_lines(t, True, q["max_chars"], q["size"], 960)
             ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * u.get("plain_y", q["y"])), body, shad=q["shadow"], extra="\\4c&H000000&"))
         elif c["kind"] == "big" and i == 0:
-            q = cs["hook"]; body, size = _fit_lines(t, True, q["max_chars"], q["size"], 960)
-            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * q["y"]), body, shad=0, extra="\\b1"), 2)
+            q = cs["hook"]; body, size = _fit_lines(t, len(t) > 10, q["max_chars"], q["size"], 960)  # 짧은 훅은 한 줄
+            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * u.get("big_y", q["y"])), body, shad=0, extra="\\b1"), 2)
         elif c["kind"] == "big":
             q = cs["title"]
             body, size = _fit_lines(t, q.get("wrap", True), q["max_chars"], q["size"], q["max_width_px"], q["outer"])
-            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
-            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * q["y"]), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
+            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * u.get("big_y", q["y"])), body, bord=q["outer"], bcol="&HFFFFFF&", fill="&HFFFFFF&", extra="\\b1"), 1)
+            ev_(s0, e0, _cap(cs["font_title"], size, cx, int(H * u.get("big_y", q["y"])), body, bord=q["inner"], bcol="&H000000&", fill="&HFFFFFF&", extra="\\b1"), 2)
         else:  # 단독 태그 = 검정 둥근 라벨
             q = cs["chip"]; body, size = _fit_lines(t, True, 16, q["size"], 880, q["pad"])
-            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * q["y"]), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
+            ev_(s0, e0, _cap(cs["font_bold"], size, cx, int(H * u.get("plain_y", q["y"])), body, bord=q["pad"], bcol="&H000000&", extra="\\b1\\3a&H20&"), 2)
         shown.append((s0, e0, t.replace("|", " ")))
+    for c in over:
+        t = c["text"]; q = cs["plain"]
+        if c["kind"] == "small":  # 작은 보조 문구: 일반 자막 바로 아래
+            y = u.get("plain_y", q["y"]) + 0.05
+            ev_(a, b, _cap(cs["font_plain"], int(q["size"] * 0.72), cx, int(H * y), t, shad=q["shadow"], extra="\\4c&H000000&"), 3)
+            shown.append((a, b, t))
+        elif c["kind"] == "line":  # 허리단 등 위치 표시용 짧은 가로선: "x시작,x끝,y[,나타나는 시점(블록 비율)]"
+            v = [float(x) for x in t.split(",")]; x0, x1, yy = v[:3]; st = v[3] if len(v) > 3 else 0.5
+            w_px, th = int((x1 - x0) * W), 9
+            draw = f"{{\\an7\\pos({int(x0 * W)},{int(yy * H)})\\p1\\c&HFFFFFF&\\bord3\\3c&H000000&\\shad0}}m 0 0 l {w_px} 0 {w_px} {th} 0 {th}{{\\p0}}"
+            ev_(a + dur * st, b, draw, 3)
+        elif c["kind"] == "mark":  # 선택한 쪽 위에 작은 표시
+            mx = int(W * (0.25 if "왼" in t else 0.75))
+            ev_(a, b, _cap(cs["font_bold"], 40, mx, int(H * 0.185), "▼ 선택", shad=2, extra="\\b1\\4c&H000000&"), 3)
+            shown.append((a, b, "선택"))
     for c in cta:
         q = cs["plain"]; sec = cs.get("cta_sec", 1.5)
         ev_(max(a, b - sec), b, _cap(cs["font_plain"], q["size"], cx, int(H * q["y"]), c["text"], shad=q["shadow"], extra="\\fad(250,0)\\4c&H000000&"), 3)

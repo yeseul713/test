@@ -5,7 +5,25 @@ from .script_plan import parse_script
 from . import render, qa
 
 
-def _piece(src, ss, d, mode, out, rules, crop=None):
+def _drift_sq(drift, d, W):
+    """정지한 화면이 멈춰 보이지 않도록 아주 약하게 천천히 확대(가운데 기준)."""
+    if not drift:
+        return ""
+    return f",scale=w='iw*(1+{drift}*t/{d:.3f})':h=-2:eval=frame,crop={W}:1080:(iw-{W})/2:(ih-1080)/2"
+
+
+def _piece_pair(src_a, ss_a, src_b, ss_b, d, out, rules, drift=0.0):
+    """로우|하이 같은 두 영상을 좌우로 나란히: 각 540x1080 칸, 위아래 검정(1편의 A/B 분할 컷과 같은 모양)."""
+    W, H, fps = rules["canvas"]["w"], rules["canvas"]["h"], rules["canvas"]["fps"]
+    half = W // 2
+    cell = f"scale=648:1152,crop={half}:1080:54:36,setsar=1,fps={fps}"
+    fc = f"[0:v]{cell}[a];[1:v]{cell}[b];[a][b]hstack{_drift_sq(drift, d, W)},pad={W}:{H}:0:(oh-ih)/2:black,format=yuv420p[v]"
+    ff(["-ss", f"{ss_a:.3f}", "-t", f"{d:.3f}", "-i", src_a, "-ss", f"{ss_b:.3f}", "-t", f"{d:.3f}", "-i", src_b,
+        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-shortest", "-t", f"{d:.3f}", out])
+
+
+def _piece(src, ss, d, mode, out, rules, crop=None, drift=0.0):
     W, H, fps = rules["canvas"]["w"], rules["canvas"]["h"], rules["canvas"]["fps"]
     if mode == "split_square":  # 정사각 A/B 분할 영상: 가로 꽉 채우고 위아래 검정 (1편의 분할 컷과 같은 모양)
         vf = f"scale={W}:{W},pad={W}:{H}:0:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
@@ -14,7 +32,8 @@ def _piece(src, ss, d, mode, out, rules, crop=None):
         if crop:  # 확대 크롭: 화면 비율(9:16)을 유지한 채 (cx,cy) 중심으로 zoom 배 확대
             z, cx, cy = crop["zoom"], crop["cx"], crop["cy"]
             pre = (f"crop=w=iw/{z}:h=ih/{z}:x=max(0\\,min(iw-iw/{z}\\,{cx}*iw-iw/{z}/2)):y=max(0\\,min(ih-ih/{z}\\,{cy}*ih-ih/{z}/2)),")
-        vf = pre + f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,fps={fps},format=yuv420p"
+        dr = (f",scale=w='iw*(1+{drift}*t/{d:.3f})':h=-2:eval=frame,crop={W}:{H}:(iw-{W})/2:(ih-{H})/2" if drift else "")
+        vf = pre + f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}{dr},setsar=1,fps={fps},format=yuv420p"
     ff(["-ss", f"{ss:.3f}", "-t", f"{d:.3f}", "-i", src, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a",
         "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-shortest", "-t", f"{d:.3f}", out])
 
@@ -37,8 +56,11 @@ def build(clip_dir, script, mapping, out):
             if c["ss"] + d > duration(str(src)) + 0.05:
                 raise SystemExit(f"{c['f']} 의 {c['ss']}초부터 {d:.1f}초는 영상 길이를 넘습니다.")
             piece = work / f"piece_{len(files):03d}.mp4"
+            if c.get("mode") == "split_pair":
+                _piece_pair(str(src), c["ss"], str(find(c["f2"])), c["ss2"], d, piece, rules, c.get("drift", 0.0))
+                pieces.append({"unit": ui, "real_dur": duration(piece)}); files.append(piece); continue
             _piece(str(src), c["ss"], d, c.get("mode", "cover"), piece, rules,
-                   {"zoom": c["zoom"], "cx": c["cx"], "cy": c["cy"]} if "zoom" in c else None)
+                   {"zoom": c["zoom"], "cx": c["cx"], "cy": c["cy"]} if "zoom" in c else None, c.get("drift", 0.0))
             pieces.append({"unit": ui, "real_dur": duration(piece)}); files.append(piece)
     (work / "concat.txt").write_text("".join(f"file '{f.name}'\n" for f in files))
     base = work / "base.mp4"

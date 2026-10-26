@@ -158,7 +158,7 @@
     "plain": {
       "size": 54,
       "y": 0.79,
-      "max_chars": 16,
+      "max_chars": 20,
       "shadow": 2
     },
     "hook": {

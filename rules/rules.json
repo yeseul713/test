@@ -243,6 +243,16 @@
       "size": 50,
       "y": 0.82,
       "split_y": 0.91
+    },
+    "design": {
+      "main": 66,
+      "sub": 44,
+      "pad": 18,
+      "alpha": "&H70&",
+      "gap": 6,
+      "main_font": "NanumSquareRound",
+      "sub_font": "NanumBarunGothic",
+      "sub_color": "&HE0E0E0&"
     }
   },
   "export": {

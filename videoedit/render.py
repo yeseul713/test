@@ -159,8 +159,21 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
             k = "plain"  # 1편 분할 컷처럼 분할 영상 위에는 큰 글씨를 얹지 않고 아래 검은 영역에 자막으로
         if k == "plain":
             q = cs["plain"]; size0 = q["split_size"] if split else q["size"]; y = (q["split_y"] if split else q["y"])
-            body, size = _fit_lines(t, True, q["max_chars"], size0, 960)
-            ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=q["shadow"], extra="\\4c&H000000&"))
+            if cs.get("design"):  # 정돈된 디자인: 첫 줄 굵고 크게 / 둘째 줄 작고 연하게, 줄마다 반투명 검정 둥근 배경
+                dz = cs["design"]; lines = [x.strip() for x in t.split("|")] if "|" in t else [t]
+                cont = [l.startswith("~") for l in lines]; lines = [l.lstrip("~") for l in lines]  # '~' = 앞 줄에 이어지는 같은 크기 줄
+                sizes = [dz["main"] if (n == 0 or cont[n]) else dz["sub"] for n in range(len(lines))]
+                if any(cont): sizes = [min(sizes)] * len(lines)
+                sizes = [min(sz, int((900 - 2 * dz["pad"]) / (_em_width(l) * 0.95))) for sz, l in zip(sizes, lines)]
+                hs = [int(sz * 1.18) + 2 * dz["pad"] // 2 for sz in sizes]; total = sum(hs) + dz["gap"] * (len(lines) - 1)
+                top = H * y - total / 2
+                for n, (l, sz) in enumerate(zip(lines, sizes)):
+                    yc = int(top + sum(hs[:n]) + dz["gap"] * n + hs[n] / 2)
+                    main = (n == 0 or cont[n]); f = dz["main_font"] if main else dz["sub_font"]; col = "&HFFFFFF&" if main else dz["sub_color"]
+                    ev_(s0, e0, _cap(f, sz, cx, yc, l, fill=col, bord=dz["pad"], bcol="&H000000&", shad=0, extra=f"\\b{1 if main else 0}\\3a{dz['alpha']}"))
+            else:
+                body, size = _fit_lines(t, True, q["max_chars"], size0, 960)
+                ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=q["shadow"], extra="\\4c&H000000&"))
         elif k == "small":
             q = cs["small"]; y = q["split_y"] if split else q["y"]
             body, size = _fit_lines(t, True, 24, q["size"], 960)

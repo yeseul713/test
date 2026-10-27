@@ -171,7 +171,7 @@ def _caption_events(u, i, a, b, rules, ev, sfx, shown, typo_log, pop):
                 for n, (l, sz) in enumerate(zip(lines, sizes)):
                     yc = int(top + sum(hs[:n]) + dz["gap"] * n + hs[n] / 2)
                     main = (n == 0 or cont[n]); f = dz["main_font"] if main else dz["sub_font"]; col = "&HFFFFFF&" if main else dz["sub_color"]
-                    ev_(s0, e0, _cap(f, sz, cx, yc, l, fill=col, bord=dz["pad"], bcol="&H000000&", shad=dz.get("shadow", 0), extra=f"\\b{1 if (main and dz.get('bold', True)) else 0}\\3a{dz['alpha']}\\4a&H60&"))
+                    ev_(s0, e0, _cap(f, sz, cx, yc, l, fill=col, bord=dz["pad"], bcol="&H000000&", shad=dz.get("shadow", 0), extra=f"\\b{1 if (main and dz.get('bold', True)) else 0}\\3a{dz['alpha']}\\4a&H60&\\fax{dz.get('shear', 0)}"))
             else:
                 body, size = _fit_lines(t, True, q["max_chars"], size0, 960)
                 ev_(s0, e0, _cap(cs["font_plain"], size, cx, int(H * y), body, shad=q["shadow"], extra="\\4c&H000000&"))

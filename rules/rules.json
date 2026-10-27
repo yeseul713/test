@@ -197,6 +197,13 @@
       "applied": [
         "design: NanumBarunGothic 보통 굵기, 배경 박스 없음, 얇은 그림자(서버에 애플/윈도우 시스템 폰트가 없어 가장 비슷한 나눔바른고딕 사용)"
       ]
+    },
+    {
+      "date": "2026-10-27",
+      "feedback": "자막 폰트를 첨부 이미지(기울어진 굵은 고딕 + 검정 외곽선)처럼",
+      "applied": [
+        "design: NanumBarunGothic Bold, 기울임 0.2(약 12도), 흰 글씨 + 검정 외곽선 4px + 그림자 2px, 보조 줄도 흰색"
+      ]
     }
   ],
   "caption_style": {
@@ -252,16 +259,17 @@
       "split_y": 0.91
     },
     "design": {
-      "main": 64,
+      "main": 66,
       "sub": 44,
-      "pad": 2,
-      "alpha": "&HFF&",
-      "gap": 2,
-      "shadow": 3,
-      "bold": false,
+      "pad": 4,
+      "alpha": "&H00&",
+      "gap": 6,
+      "shadow": 2,
+      "bold": true,
+      "shear": 0.2,
       "main_font": "NanumBarunGothic",
       "sub_font": "NanumBarunGothic",
-      "sub_color": "&HE6E6E6&"
+      "sub_color": "&HFFFFFF&"
     }
   },
   "export": {

@@ -204,6 +204,13 @@
       "applied": [
         "design: NanumBarunGothic Bold, 기울임 0.2(약 12도), 흰 글씨 + 검정 외곽선 4px + 그림자 2px, 보조 줄도 흰색"
       ]
+    },
+    {
+      "date": "2026-10-27",
+      "feedback": "자막 글씨체는 고운바탕",
+      "applied": [
+        "design 폰트=Gowun Batang(Google Fonts, assets/fonts)"
+      ]
     }
   ],
   "caption_style": {
@@ -259,15 +266,15 @@
       "split_y": 0.91
     },
     "design": {
-      "main": 66,
-      "sub": 44,
+      "main": 68,
+      "sub": 46,
       "pad": 4,
       "alpha": "&H00&",
       "gap": 6,
       "shadow": 2,
       "bold": true,
-      "main_font": "NanumBarunGothic",
-      "sub_font": "NanumBarunGothic",
+      "main_font": "Gowun Batang",
+      "sub_font": "Gowun Batang",
       "sub_color": "&HFFFFFF&",
       "italic": true
     }

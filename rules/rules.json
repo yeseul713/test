@@ -266,10 +266,10 @@
       "gap": 6,
       "shadow": 2,
       "bold": true,
-      "shear": 0.2,
       "main_font": "NanumBarunGothic",
       "sub_font": "NanumBarunGothic",
-      "sub_color": "&HFFFFFF&"
+      "sub_color": "&HFFFFFF&",
+      "italic": true
     }
   },
   "export": {

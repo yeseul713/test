@@ -17,13 +17,16 @@ def _piece_pair(src_a, ss_a, src_b, ss_b, d, out, rules, drift=0.0, zoomcrop=Non
     W, H, fps = rules["canvas"]["w"], rules["canvas"]["h"], rules["canvas"]["fps"]
     half = W // 2
     fr = rules["framing"]["pair"]
-    if zoomcrop:  # 하체 확대 비교: 원본(4K)에서 (cx,cy) 중심 w×h 비율로 잘라 칸(540x1080)에 채움
-        zc = zoomcrop
-        cell = (f"crop=iw*{zc['w']}:ih*{zc['h']}:iw*({zc['cx']}-{zc['w']}/2):ih*({zc['cy']}-{zc['h']}/2),"
-                f"scale={half}:1080,setsar=1,fps={fps}")
+    if zoomcrop:  # 하체 확대 비교: 원본(4K)에서 (cx,cy) 중심 w×h 비율로 잘라 칸(540x1080)에 채움. 오른쪽 칸은 cy2 로 허리선 높이 보정
+        def mk(zc, cy):
+            return (f"crop=iw*{zc['w']}:ih*{zc['h']}:iw*({zc['cx']}-{zc['w']}/2):ih*({cy}-{zc['h']}/2),"
+                    f"scale={half}:1080,setsar=1,fps={fps}")
+        cell, cell2 = mk(zoomcrop, zoomcrop["cy"]), mk(zoomcrop, zoomcrop.get("cy2", zoomcrop["cy"]))
     else:
+        cell2 = None
+    if not zoomcrop:
         cell = f"scale={fr['sw']}:{fr['sh']},crop={half}:1080:{fr['x']}:{fr['y']},setsar=1,fps={fps}"
-    fc = f"[0:v]{cell}[a];[1:v]{cell}[b];[a][b]hstack{_drift_sq(drift, d, W)},pad={W}:{H}:0:(oh-ih)/2:black,format=yuv420p[v]"
+    fc = f"[0:v]{cell}[a];[1:v]{cell2 or cell}[b];[a][b]hstack{_drift_sq(drift, d, W)},pad={W}:{H}:0:(oh-ih)/2:black,format=yuv420p[v]"
     ff(["-ss", f"{ss_a:.3f}", "-t", f"{d:.3f}", "-i", src_a, "-ss", f"{ss_b:.3f}", "-t", f"{d:.3f}", "-i", src_b,
         "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-shortest", "-t", f"{d:.3f}", out])
